@@ -5,18 +5,33 @@ import sys
 
 from perception import hashers
 
-image_exts = ["jpg", "jpeg", "png", "tif", "tiff"]
+image_exts = [
+	"bmp", "jpg", "jpeg", "png", "tif", "tiff", "webp",
+	"jp2", "j2k", "jpf", "jpm", "jpg2", "j2c", "jpc", "jpx"
+	]
+
+def print_pairs(pairs):
+    for p in pairs:
+        # print IMAGE1  IMAGE2  DISTANCE
+        print("{}\t{}\t{}".format(p[0], p[1], p[2]))
 
 def main():
     parser = argparse.ArgumentParser(
         prog="Image Duplicate Finder"
     )
     parser.add_argument("images", nargs="+")
-    parser.add_argument("-t", "--threshold", default=0.3, type=float)
+    parser.add_argument("-l", "--list", default=False, action="store_true",
+                        help="print list of pairs of duplicates sorted by distance instead of deleting")
+    parser.add_argument("-t", "--threshold", default=0.3, type=float, metavar="T",
+                        help=" thethreshold at which to show potential duplicates for manual checking (default 0.3), or,"
+                        "if used with the -l flag, the threshold at which to include potential duplicates in the output")
+    parser.add_argument("-a", "--auto-threshold", default=None, type=float, metavar="A",
+                        help="the threshold at which to automatically delete potential duplicates (default none)")
+    parser.add_argument("-f", "--force", default=False, action="store_true",
+                        help="disable file extension check before operating on files")
     parser.add_argument("-q", "--quiet", default=False, action="store_true")
-    parser.add_argument("-a", "--auto-threshold", default=0.05, type=float)
-    parser.add_argument("-A", "--automatic", default=False, action="store_true")
-    parser.add_argument("-m", "--manual", default=False, action="store_true")
+    parser.add_argument("-d", "--dry-run", default=False, action="store_true",
+                        help="print list of files to delete instead of actually deleting")
 
     args = parser.parse_args()
 
@@ -27,18 +42,15 @@ def main():
     files = []
     for i in args.images:
         if os.path.isfile(i):
-            if i.split(".")[-1].lower() in image_exts:
-                files.append((i, os.path.getmtime(i)))
-            elif not args.quiet:
-                print("{} is not a compatible image, skipping...".format(i), file=sys.stderr)
+            files.append((i, os.path.getmtime(i)))
         elif os.path.isdir(i):
             for r, d, f in os.walk(i):
                 for name in f:
                     fp = os.path.join(r, name)
-                    if name.split(".")[-1].lower() in image_exts:
+                    if name.split(".")[-1].lower() in image_exts or args.force:
                         files.append((fp, os.path.getmtime(fp)))
                     elif not args.quiet:
-                        print("{} is not a compatible image, skipping...".format(fp), file=sys.stderr)
+                        print("{} is not a compatible image format, skipping...".format(fp), file=sys.stderr)
         else:
             print("could not find {}".format(i), file=sys.stderr)
             sys.exit(1)
@@ -64,9 +76,13 @@ def main():
             if hashes[i] is None or hashes[j] is None:
                 continue
             distance = hasher.compute_distance(hashes[i], hashes[j])
-            if distance < args.threshold:
+            if distance <= args.threshold:
                 pairs.append((files[i][0], files[j][0], distance))
     pairs.sort(key = lambda p: p[2])
+
+    if args.list:
+        print_pairs(pairs)
+        return
 
     # Iterate through pairs of duplicates, display duplicates in feh, and allow
     # the user to choose which to save.
@@ -74,7 +90,7 @@ def main():
     to_delete = []
     while i < len(pairs):
         # Check if the auto-deletion threshold is met.
-        while i < len(pairs) and pairs[i][2] <= args.auto_threshold and not args.manual:
+        while args.auto_threshold is not None and i < len(pairs) and pairs[i][2] <= args.auto_threshold:
             to_delete.append(pairs[i][1])
             i += 1
         # Make sure the file is not already scheduled for deletion.
@@ -96,8 +112,8 @@ def main():
             i += 1
             continue
 
-        # If the -A option is on, automatically delete all duplicates.
-        if args.automatic:
+        # If the -a option is on, automatically delete all duplicates.
+        if args.auto_threshold is not None:
             to_delete.extend(dups[1:])
         # Otherwise let the user choose what to save.
         else:
@@ -108,7 +124,7 @@ def main():
                 to_save = []
                 while receiving_input:
                     to_save = []
-                    save = input("Images to save? [default=1] ")
+                    save = input("Images to save? [default=1, a for all] ")
                     receiving_input = False
                     if save.strip().lower().startswith("a"):
                         to_save = dups
@@ -130,10 +146,13 @@ def main():
 
     # Delete files.
     for d in to_delete:
-        try:
-            os.remove(d)
-        except:
-            print("could not delete {}".format(d), file=sys.stderr)
+        if args.dry_run:
+            print(d)
+        else:
+            try:
+                os.remove(d)
+            except:
+                print("could not delete {}".format(d), file=sys.stderr)
 
 if __name__ == "__main__":
     main()

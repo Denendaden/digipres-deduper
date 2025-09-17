@@ -31,13 +31,15 @@ $ python dedup.py -t 0 -a 0.2 TARGET...
 
 ### Options
 
-- `-t`/`--threshold`: the threshold used to identify potential duplicates to show the user (default=0.3).
+- `-l`/`--list`: output a list (to stdout) of pairs of potential duplicates sorted by distance instead of deleting.
+- `-t`/`--threshold`: the threshold used to identify potential duplicates to show the user (default=0.3), or if `-l` is enabled, the threshold at which to include potential duplicate pairs in the output.
 A value of 0.2 is unlikely to provide false positives.
 Images with a distance > 0.5 are often entirely different from each other.
 - `-a`/`--auto-threshold`: the threshold at which potential duplicates will be automatically deleted, with the oldest file being preserved.
 By default, this functionality is disabled; the option `-a 0` will cause the program to automatically delete exact duplicates.
-- `-q`/`--quiet`: silences non-fatal errors and warnings, such as when a hash could not be calculated for a file.
 - `-f`/`--force`: disables the file extension check and attempts to hash all files passed.
+- `-q`/`--quiet`: silences non-fatal errors and warnings, such as when a hash could not be calculated for a file.
+- `-d`/`--dry-run`: output a list of files to delete instead of deleting.
 
 ## Compatible file types
 
