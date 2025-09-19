@@ -8,8 +8,8 @@ This is a tool for deduplicating collections of images, using the Python [Percep
 $ python dedup.py TARGET...
 ```
 
-This command, by default, will display all sets of potential duplicates (distance <= 0.3) in the `feh` image viewer and allow the user to select which to preserve from each set.
-`TARGET` is a list of files and directories; the program will recursively search all directories passed and operate on all the files therewithin.
+This command, by default, will display all sets of potential duplicates (distance <= 0.3) in the (by default) `feh` image viewer and allow the user to select which to preserve from each set.
+`TARGET` is a list of files and directories; the program will recursively search all directories passed and operate on all files inside.
 
 The threshold used by the program can be customized with the `t` or `--threshold` option:
 
@@ -32,7 +32,8 @@ $ python dedup.py -t 0 -a 0.2 TARGET...
 ### Options
 
 - `-l`/`--list`: output a list (to stdout) of pairs of potential duplicates sorted by distance instead of deleting.
-- `-t`/`--threshold`: the threshold used to identify potential duplicates to show the user (default=0.3), or if `-l` is enabled, the threshold at which to include potential duplicate pairs in the output.
+- `-c`/`--viewer-command`: command to use to view potential duplicates while selecting which to save. (default="feh -.")
+- `-t`/`--threshold`: the threshold used to identify potential duplicates to show the user, or if `-l` is enabled, the threshold at which to include potential duplicate pairs in the output. (default=0.3)
 A value of 0.2 is unlikely to provide false positives.
 Images with a distance > 0.5 are often entirely different from each other.
 - `-a`/`--auto-threshold`: the threshold at which potential duplicates will be automatically deleted, with the oldest file being preserved.
