@@ -62,7 +62,8 @@ def choose_with_viewer(dups, cmd):
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
     except:
         # Ask whether or not to continue ()
-        print("failed to run command: {}".format(' '.join(cmd)), file=sys.stderr)
+        print(f"failed to run command: {' '.join(cmd)}", file=sys.stderr)
+        proc = None
 
     # Ask user for which files to save by index.
     receiving_input = True
@@ -149,7 +150,7 @@ def delete_files(files, dry_run=False):
             try:
                 os.remove(d)
             except:
-                print("could not delete {}".format(d), file=sys.stderr)
+                print(f"could not delete {d}", file=sys.stderr)
 
 def main():
     parser = argparse.ArgumentParser(
