@@ -18,7 +18,14 @@ class Pair:
         self.dist = dist
 
     def __format__(self):
-        return "{}\t{}\t{}".format(self.file1, self.file2, self.dist)
+        return f"{self.file1}\t{self.file2}\t{self.dist}"
+
+# Store relevant information about a file.
+class File:
+    def __init__(self, filepath):
+        self.filepath = filepath
+        self.hash = None
+        self.last_modified = os.path.getmtime(filepath)
 
 def print_pairs(pairs):
     for p in pairs:
@@ -29,25 +36,23 @@ def find_dups(files, args):
     hasher = hashers.PHash(hash_size=16)
 
     # Compute hashes but leave a hash of None if it could not be calculated.
-    hashes = []
     for file in files:
         try:
-            hashes.append(hasher.compute(file))
+            file.hash = hasher.compute(file.filepath)
         except:
             if not args.quiet:
-                print("failed to compute hash for {}".format(file), file=sys.stderr)
-                hashes.append(None)
+                print(f"failed to compute hash for {file.filepath}", file=sys.stderr)
 
     # Calculate distance between all pairs of hashes and save those under the
     # threshold, then sort those by ascending distance (so closest are first).
     pairs = []
-    for i in range(len(hashes)):
-        for j in range(i + 1, len(hashes)):
-            if hashes[i] is None or hashes[j] is None:
+    for i, file1 in enumerate(files):
+        for file2 in files[i + 1:]:
+            if file1.hash is None or file2.hash is None:
                 continue
-            distance = hasher.compute_distance(hashes[i], hashes[j])
+            distance = hasher.compute_distance(file1.hash, file2.hash)
             if distance <= args.threshold:
-                pairs.append(Pair(files[i], files[j], distance))
+                pairs.append(Pair(file1.filepath, file2.filepath, distance))
     pairs.sort(key = lambda p: p.dist)
 
     return pairs
@@ -57,7 +62,7 @@ def choose_with_viewer(dups, cmd):
     chosen = []
     cmd = cmd.split() + dups
     try:
-        proc = subprocess.Popen(cmd + dups, stdin=subprocess.PIPE)
+        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
     except:
         # Ask whether or not to continue ()
         print("failed to run command: {}".format(' '.join(cmd)), file=sys.stderr)
@@ -94,6 +99,7 @@ def choose_with_viewer(dups, cmd):
 def identify_to_delete(pairs, args):
     # Iterate through pairs of duplicates, display duplicates in feh, and allow
     # the user to choose which to save.
+    # This works by iterating through a list of pairs, re
     i = 0
     to_delete = []
     while i < len(pairs):
@@ -167,23 +173,23 @@ def main():
     # Get a list of images supplied by command-line arguments, as well as images
     # in supplied folders.
     files = []
-    for i in args.images:
-        if os.path.isfile(i):
-            files.append((i, os.path.getmtime(i)))
-        elif os.path.isdir(i):
-            for r, d, f in os.walk(i):
+    for file in args.images:
+        if os.path.isfile(file):
+            files.append(File(file))
+        elif os.path.isdir(file):
+            for r, d, f in os.walk(file):
                 for name in f:
                     fp = os.path.join(r, name)
                     if name.split(".")[-1].lower() in image_exts or args.force:
-                        files.append(fp)
+                        files.append(File(fp))
                     elif not args.quiet:
-                        print("{} is not a compatible image format, skipping...".format(fp), file=sys.stderr)
+                        print(f"{fp} is not a compatible image format, skipping...", file=sys.stderr)
         else:
-            print("could not find {}".format(i), file=sys.stderr)
+            print(f"could not find {file}", file=sys.stderr)
             sys.exit(1)
 
     # Sort by last modification time so that older files are preferred.
-    files.sort(key=lambda f: os.path.getmtime(f))
+    files.sort(key=lambda f: f.last_modified)
 
     pairs = find_dups(files, args)
 
