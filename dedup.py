@@ -17,9 +17,6 @@ class Pair:
         self.file2 = file2
         self.dist = dist
 
-    def __format__(self):
-        return f"{self.file1}\t{self.file2}\t{self.dist}"
-
 # Store relevant information about a file.
 class File:
     def __init__(self, filepath):
@@ -28,8 +25,9 @@ class File:
         self.last_modified = os.path.getmtime(filepath)
 
 def print_pairs(pairs):
+    pairs.sort(key=lambda p: p.dist)
     for p in pairs:
-        print(p)
+        print(f"{p.file1}\t{p.file2}\t{p.dist}")
 
 # Identify pairs of potential duplicates based on the parameters set by the user.
 def find_dups(files, args):
@@ -44,7 +42,7 @@ def find_dups(files, args):
                 print(f"failed to compute hash for {file.filepath}", file=sys.stderr)
 
     # Calculate distance between all pairs of hashes and save those under the
-    # threshold, then sort those by ascending distance (so closest are first).
+    # threshold.
     pairs = []
     for i, file1 in enumerate(files):
         for file2 in files[i + 1:]:
@@ -53,7 +51,6 @@ def find_dups(files, args):
             distance = hasher.compute_distance(file1.hash, file2.hash)
             if distance <= args.threshold:
                 pairs.append(Pair(file1.filepath, file2.filepath, distance))
-    pairs.sort(key = lambda p: p.dist)
 
     return pairs
 
@@ -77,6 +74,8 @@ def choose_with_viewer(dups, cmd):
             chosen = dups
         elif save.strip().lower().startswith("c"):
             print("could not complete deduplication", file=sys.stderr)
+            if proc is not None:
+                proc.terminate()
             sys.exit(1)
         elif len(save) <= 0 or save.isspace():
             chosen.append(dups[0])
@@ -99,7 +98,11 @@ def choose_with_viewer(dups, cmd):
 def identify_to_delete(pairs, args):
     # Iterate through pairs of duplicates, display duplicates in feh, and allow
     # the user to choose which to save.
-    # This works by iterating through a list of pairs, re
+    # This works by iterating through a list of pairs, recording the first (oldest)
+    # file in each pair, and then continuing to add files to a list of potential
+    # duplicates until a pair with a different first file is reached.
+    # This results in grouping duplicate files together instead of needing to
+    # show individual pairs.
     i = 0
     to_delete = []
     while i < len(pairs):
