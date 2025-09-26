@@ -101,6 +101,32 @@ def choose_with_viewer(dups, viewer_cmd):
 
 # Identify duplicates to delete based on the paramaters set by the user.
 def identify_to_delete(pairs, cli_args):
+    # Initiate list of files to delete.
+    to_delete = []
+
+    # If the `pairs` option is on, use an algorithm to simply iterate through
+    # the pairs.
+    if cli_args.pairs:
+        for pair in pairs:
+            # Check if either file in the pair has already been marked for
+            # deletion.
+            if pair.file1 in to_delete or pair.file2 in to_delete:
+                continue
+            # Check if the pair's file2 should be automatically deleted.
+            elif cli_args.auto_threshold is not None and pair.dist < cli_args.auto_threshold:
+                to_delete.append(pair.file2)
+                continue
+
+            # Show viewer the images and ask which to save.
+            to_save = choose_with_viewer([pair.file1, pair.file2], cli_args.viewer_command)
+            if pair.file1 not in to_save:
+                to_delete.append(pair.file1)
+            if pair.file2 not in to_save:
+                to_delete.append(pair.file2)
+
+        return to_delete
+
+    # Otherwise use the clustering algorithm.
     # Iterate through pairs of duplicates, display duplicates in feh, and allow
     # the user to choose which to save.
     # This works by iterating through a list of pairs, recording the first (oldest)
@@ -109,7 +135,6 @@ def identify_to_delete(pairs, cli_args):
     # This results in grouping duplicate files together instead of needing to
     # show individual pairs.
     i = 0
-    to_delete = []
     while i < len(pairs):
         # Skip this pair if file1 is already marked for deletion.
         if pairs[i].file1 in to_delete:
@@ -117,7 +142,7 @@ def identify_to_delete(pairs, cli_args):
             continue
 
         # Start list of dups with file1 in this pair, which should be the oldest
-        # file in the cluster.
+        # file in the cluster (these will be passed to `choose_with_viewer`).
         dups = [pairs[i].file1]
 
         # Continue iterating through pairs for as long as they share the same
@@ -167,6 +192,8 @@ def main():
     parser.add_argument("images", nargs="+")
     parser.add_argument("-l", "--list", default=False, action="store_true",
                         help="print list of pairs of duplicates sorted by distance instead of deleting")
+    parser.add_argument("-p", "--pairs", default=False, action="store_true",
+                        help="disable clustering and only show 1 pair of duplicates at a time")
     parser.add_argument("-c", "--viewer-command", default="feh -.", type=str,
                         help="command used to show potential duplicates (default feh -.)")
     parser.add_argument("-t", "--threshold", default=0.3, type=float, metavar="T",
