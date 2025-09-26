@@ -87,7 +87,7 @@ def choose_with_viewer(dups, viewer_cmd):
         else:
             for f in save.split(","):
                 n = f.strip()
-                if n.isdigit():
+                if n.isdigit() and int(n) > 0 and int(n) <= len(dups):
                     chosen.append(dups[int(n) - 1])
                 else:
                     # Input was not well formed.
