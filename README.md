@@ -11,6 +11,8 @@ $ python dedup.py TARGET...
 This command, by default, will display all sets of potential duplicates (distance <= 0.3) in the (by default) `feh` image viewer and allow the user to select which to preserve from each set.
 `TARGET` is a list of files and directories; the program will recursively search all directories passed and operate on all files inside.
 
+Keep in mind that the perceptual hashing algorithm is not designed for images of text, and will tend to recognize images of different paragraphs of text as duplicates.
+
 The threshold used by the program can be customized with the `t` or `--threshold` option:
 
 ```
