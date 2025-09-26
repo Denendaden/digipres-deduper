@@ -111,37 +111,41 @@ def identify_to_delete(pairs, cli_args):
     i = 0
     to_delete = []
     while i < len(pairs):
-        # Check if the auto-deletion threshold is met.
-        while cli_args.auto_threshold is not None and i < len(pairs) and pairs[i].dist <= cli_args.auto_threshold:
-            to_delete.append(pairs[i].file2)
-            i += 1
-        # Make sure the file is not already scheduled for deletion.
-        while i < len(pairs) and pairs[i].file1 in to_delete:
-            i += 1
-        # Exit the loop if we have gone past the end.
-        if i >= len(pairs):
-            break
-
-        dups = [pairs[i].file1]
-        # Keep iterating through until we get a pair starting with a different
-        # file, in order to collect all duplicates of this file.
-        while i < len(pairs) and pairs[i].file1 == dups[0]:
-            if pairs[i].file2 not in to_delete:
-                dups.append(pairs[i].file2)
-            i += 1
-        # Make sure that we are left with more than one image to show.
-        if len(dups) <= 1:
+        # Skip this pair if file1 is already marked for deletion.
+        if pairs[i].file1 in to_delete:
             i += 1
             continue
 
-        # If the -a option is on, automatically delete all duplicates.
-        if cli_args.auto_threshold is not None:
-            to_delete.extend(dups[1:])
+        # Start list of dups with file1 in this pair, which should be the oldest
+        # file in the cluster.
+        dups = [pairs[i].file1]
+
+        # Continue iterating through pairs for as long as they share the same
+        # first file.
+        j = i
+        while j < len(pairs) and pairs[j].file1 == pairs[i].file1:
+            # Make sure file is not already scheduled for deletion.
+            if pairs[j].file2 in to_delete:
+                pass
+            # Check if the auto-deletion threshold is met.
+            elif cli_args.auto_threshold is not None and pairs[j].dist <= cli_args.auto_threshold:
+                to_delete.append(pairs[j].file2)
+            # Otherwise append file2 to list of dups.
+            else:
+                dups.append(pairs[j].file2)
+            j += 1
+
+        # Make sure that we are left with more than one image to show.
+        if len(dups) <= 1:
+            pass
         # Otherwise let the user choose what to save.
         else:
             # Mark all files not selected with feh for deletion.
             to_save = choose_with_viewer(dups, cli_args.viewer_command)
             to_delete.extend([d for d in dups if d not in to_save])
+
+        # Update i to match j so the next iteration starts with a new file1.
+        i = j
 
     return to_delete
 
@@ -197,7 +201,7 @@ def main():
             sys.exit(1)
 
     # Sort by last modification time so that older files are preferred.
-    files.sort(key=lambda f: f.last_modified)
+    files.sort(key=lambda f: (f.last_modified, f.filepath))
 
     pairs = find_dups(files, args)
 
