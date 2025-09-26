@@ -11,6 +11,7 @@ image_exts = [
 	]
 
 # Pair of potential duplicates and the distance between them.
+# `file1` and `file2` are stored as `str` rather than with the `File` class.
 class Pair:
     def __init__(self, file1, file2, dist):
         self.file1 = file1
@@ -24,13 +25,14 @@ class File:
         self.hash = None
         self.last_modified = os.path.getmtime(filepath)
 
+# Sort pairs by distance and print.
 def print_pairs(pairs):
     pairs.sort(key=lambda p: p.dist)
     for p in pairs:
         print(f"{p.file1}\t{p.file2}\t{p.dist}")
 
 # Identify pairs of potential duplicates based on the parameters set by the user.
-def find_dups(files, args):
+def find_dups(files, cli_args):
     hasher = hashers.PHash(hash_size=16)
 
     # Compute hashes but leave a hash of None if it could not be calculated.
@@ -38,7 +40,7 @@ def find_dups(files, args):
         try:
             file.hash = hasher.compute(file.filepath)
         except:
-            if not args.quiet:
+            if not cli_args.quiet:
                 print(f"failed to compute hash for {file.filepath}", file=sys.stderr)
 
     # Calculate distance between all pairs of hashes and save those under the
@@ -49,19 +51,21 @@ def find_dups(files, args):
             if file1.hash is None or file2.hash is None:
                 continue
             distance = hasher.compute_distance(file1.hash, file2.hash)
-            if distance <= args.threshold:
+            if distance <= cli_args.threshold:
                 pairs.append(Pair(file1.filepath, file2.filepath, distance))
 
     return pairs
 
-# Show images to the user and return the ones they select by index.
-def choose_with_viewer(dups, cmd):
+# Show one set of potential duplicates to the user and return the ones they
+# select by index (to save).
+def choose_with_viewer(dups, viewer_cmd):
     chosen = []
-    cmd = cmd.split() + dups
+    # Split `viewer_cmd` into a list to pass to Popen and append `dups`.
+    cmd = viewer_cmd.split() + dups
     try:
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
     except:
-        # Ask whether or not to continue ()
+        # Tell user the command failed to run so they can cancel if they wish.
         print(f"failed to run command: {' '.join(cmd)}", file=sys.stderr)
         proc = None
 
@@ -78,7 +82,7 @@ def choose_with_viewer(dups, cmd):
             if proc is not None:
                 proc.terminate()
             sys.exit(1)
-        elif len(save) <= 0 or save.isspace():
+        elif len(save) == 0 or save.isspace():
             chosen.append(dups[0])
         else:
             for f in save.split(","):
@@ -96,7 +100,7 @@ def choose_with_viewer(dups, cmd):
     return chosen
 
 # Identify duplicates to delete based on the paramaters set by the user.
-def identify_to_delete(pairs, args):
+def identify_to_delete(pairs, cli_args):
     # Iterate through pairs of duplicates, display duplicates in feh, and allow
     # the user to choose which to save.
     # This works by iterating through a list of pairs, recording the first (oldest)
@@ -108,7 +112,7 @@ def identify_to_delete(pairs, args):
     to_delete = []
     while i < len(pairs):
         # Check if the auto-deletion threshold is met.
-        while args.auto_threshold is not None and i < len(pairs) and pairs[i].dist <= args.auto_threshold:
+        while cli_args.auto_threshold is not None and i < len(pairs) and pairs[i].dist <= cli_args.auto_threshold:
             to_delete.append(pairs[i].file2)
             i += 1
         # Make sure the file is not already scheduled for deletion.
@@ -131,12 +135,12 @@ def identify_to_delete(pairs, args):
             continue
 
         # If the -a option is on, automatically delete all duplicates.
-        if args.auto_threshold is not None:
+        if cli_args.auto_threshold is not None:
             to_delete.extend(dups[1:])
         # Otherwise let the user choose what to save.
         else:
             # Mark all files not selected with feh for deletion.
-            to_save = choose_with_viewer(dups, args.viewer_command)
+            to_save = choose_with_viewer(dups, cli_args.viewer_command)
             to_delete.extend([d for d in dups if d not in to_save])
 
     return to_delete
