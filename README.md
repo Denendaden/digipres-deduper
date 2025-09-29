@@ -34,6 +34,7 @@ $ python dedup.py -t 0 -a 0.2 TARGET...
 ### Options
 
 - `-l`/`--list`: output a list (to stdout) of pairs of potential duplicates sorted by distance instead of deleting.
+- `-p`/`--pairs`: disable clustering and only show 1 pair of duplicates at a time.
 - `-c`/`--viewer-command`: command to use to view potential duplicates while selecting which to save. (default="feh -.")
 - `-t`/`--threshold`: the threshold used to identify potential duplicates to show the user, or if `-l` is enabled, the threshold at which to include potential duplicate pairs in the output. (default=0.3)
 A value of 0.2 is unlikely to provide false positives.
