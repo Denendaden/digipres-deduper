@@ -176,6 +176,13 @@ def identify_to_delete(pairs, cli_args):
 
 # Delete the files provided, or print them without deleting if `dry_run` is True.
 def delete_files(files, dry_run=False):
+    print("About to delete:")
+    print('\n'.join(files))
+    ok = input("Ok to delete? [Y/n]")
+
+    if ok.strip().lower().startswith("n"):
+        return
+
     for d in files:
         if dry_run:
             print(d)
