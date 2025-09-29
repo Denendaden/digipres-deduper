@@ -1,0 +1,10 @@
+[project]
+name = "digipres-deduper"
+version = "2025.0.0"
+dependencies = ["perception >= 0.8"]
+readme = "README.md"
+license = "MIT"
+description = "Tool for identifying and deleting duplicate images"
+
+[project.scripts]
+dedup = "dedup:main"
